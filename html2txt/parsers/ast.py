@@ -2414,7 +2414,7 @@ class MarkdownVisitor:
     if attr_href is None:
       return (None, None)
     attr_href = unquote(attr_href)
-    if attr_href.endswith(attr_text):
+    if attr_href == attr_text:
       open_tag = "<"
       close_tag = ">"
       return (open_tag, close_tag)
@@ -2436,6 +2436,7 @@ class MarkdownVisitor:
       else:
         attr_title = self.html_escape(attr_title)
         close_tag = f"""]({attr_href} "{attr_title}")"""
+
     return (open_tag, close_tag)
 
   def format_img_link(self, attr_src, attr_alt, attr_title):
