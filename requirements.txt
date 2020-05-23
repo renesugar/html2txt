@@ -1,0 +1,9 @@
+beautifulsoup4==4.9.1
+# Editable install with no version control (html2txt==0.1.0)
+-e /Users/rene/projects/html2txt
+html5lib==1.0.1
+markdown2==2.3.9
+pytz==2020.1
+six==1.15.0
+soupsieve==2.0.1
+webencodings==0.5.1

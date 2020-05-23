@@ -1,0 +1,25 @@
+attrs==19.3.0
+beautifulsoup4==4.9.1
+colorama==0.4.3
+docopt==0.6.2
+# Editable install with no version control (html2txt==0.1.0)
+-e /Users/rene/projects/html2txt
+html5lib==1.0.1
+importlib-metadata==1.6.0
+markdown2==2.3.9
+more-itertools==8.3.0
+packaging==20.4
+pathtools==0.1.2
+pluggy==0.13.1
+py==1.8.1
+pyparsing==2.4.7
+pytest==5.4.2
+pytest-mock==3.1.0
+pytest-watch==4.2.0
+pytz==2020.1
+six==1.15.0
+soupsieve==2.0.1
+watchdog==0.10.2
+wcwidth==0.1.9
+webencodings==0.5.1
+zipp==3.1.0
