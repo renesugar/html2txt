@@ -2413,8 +2413,12 @@ class MarkdownVisitor:
     # Check for autolink
     if attr_href is None:
       return (None, None)
-    attr_href = unquote(attr_href)
-    if attr_href == attr_text:
+
+    if attr_text == "":
+      open_tag = "<" + attr_href
+      close_tag = ">"
+      return (open_tag, close_tag)
+    elif unquote(attr_href) == attr_text:
       open_tag = "<"
       close_tag = ">"
       return (open_tag, close_tag)
@@ -2430,7 +2434,7 @@ class MarkdownVisitor:
       file_name = attr_href.split('/')[-1]
       close_tag = f"""{file_name}](:/{resource})"""
     else:
-      attr_href = self.html_escape(attr_href)
+      #attr_href = self.html_escape(attr_href)
       if attr_title is None:
         close_tag = f"""]({attr_href})"""
       else:
