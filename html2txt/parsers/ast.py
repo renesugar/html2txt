@@ -7,6 +7,9 @@ from collections import OrderedDict
 from io import StringIO
 from xml.sax.saxutils import escape, quoteattr
 import html
+
+import urllib
+from urllib.parse import urlparse
 from urllib.parse import unquote
 
 import re
@@ -37,6 +40,40 @@ import re
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
+# Markdown provides backslash escapes for the following characters:
+#
+# \   backslash
+# `   backtick
+# *   asterisk
+# _   underscore
+# {}  curly braces
+# []  square brackets
+# ()  parentheses
+# #   hash mark
+# +   plus sign
+# -   minus sign (hyphen)
+# .   dot
+# !   exclamation mark
+def markdown_escape(s):
+  if s is None:
+    return s
+  t = s.replace("\\", "\\\\")
+  t = t.replace("`", "\\`")
+  t = t.replace("*", "\\*")
+  t = t.replace("_", "\\_")
+  t = t.replace("{", "\\{")
+  t = t.replace("}", "\\}")
+  t = t.replace("[", "\\[")
+  t = t.replace("]", "\\]")
+  t = t.replace("(", "\\(")  
+  t = t.replace(")", "\\)")
+  t = t.replace("#", "\\#")
+  t = t.replace("+", "\\+")
+  t = t.replace("-", "\\-")
+  t = t.replace(".", "\\.")
+  t = t.replace("!", "\\!")
+  return t
 
 class Node:
   def __init__(self):
@@ -178,7 +215,7 @@ tags = [
   ("http://www.w3.org/1999/xhtml"          , "section"                ,         "",          "",            "",            "",           "",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "blockquote"             ,         "open_tag, close_tag = self.format_blockquote_tag(node.text, node.tail)",          "node_preclose = self.preclose_blockquote_tag()",            "~ignore~",            "node_text, node_tail = self.format_blockquote_text(node.text, node.tail)",           "self.post_blockquote_tag()",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "dd"                     ,         "open_tag, close_tag = self.format_dd_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_dd_text(node.text, node.tail)",           "self.post_dd_tag()",           "",           "",           "contents"),
-  ("http://www.w3.org/1999/xhtml"          , "div"                    ,         "\n",          "",            "\n",            "",           "",           "",           "",           "contents"),
+  ("http://www.w3.org/1999/xhtml"          , "div"                    ,         "open_tag, close_tag = self.format_div_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_div_text(node.text, node.tail)",           "",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "dl"                     ,         "open_tag, close_tag = self.format_dl_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_dl_text(node.text, node.tail)",           "self.post_dl_tag()",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "dt"                     ,         "open_tag, close_tag = self.format_dt_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_dt_text(node.text, node.tail)",           "self.post_dt_tag()",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "figcaption"             ,         "",          "",            "",            "",           "",           "",           "",           "contents"),
@@ -190,7 +227,7 @@ tags = [
   ("http://www.w3.org/1999/xhtml"          , "p"                      ,         "open_tag, close_tag = self.format_p_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_p_text(node.text, node.tail)",           "",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "pre"                    ,         "open_tag, close_tag = self.format_pre_tag(attr_language, attr_class, node.text, node.tail)",          "",            "~ignore~",            "",           "self.close_pre_tag()",           "",           "language|class",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "ul"                     ,         "open_tag, close_tag = self.format_ul_tag(node.text, node.tail)",          "",            "~ignore~",            "node_text, node_tail = self.format_ul_text(node.text, node.tail)",           "self.post_ul_tag()",           "",           "",           "contents"),
-  ("http://www.w3.org/1999/xhtml"          , "a"                      ,         "open_tag, close_tag =self.format_link(attr_text, attr_href, attr_title)",          "",            "~ignore~",            "",           "",           "",           "text|href|title",           "contents"),
+  ("http://www.w3.org/1999/xhtml"          , "a"                      ,         "open_tag, close_tag =self.format_link(attr_text, attr_href, attr_title)",          "",            "~ignore~",            "node_text, node_tail = self.format_link_text(node.text, node.tail)",           "",           "",           "text|href|title",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "abbr"                   ,         "open_tag, close_tag = self.format_abbr_tag(attr_title)",          "",            "~ignore~",            "node_text, node_pre_tag = self.format_abbr_text(attr_title, node.text)",           "",           "",           "title",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "b"                      ,         "**",          "",            "**",            "",           "",           "",           "",           "contents"),
   ("http://www.w3.org/1999/xhtml"          , "bdi"                    ,         "~default~",          "",            "~default~",            "",           "",           "",           "",           "contents"),
@@ -2353,6 +2390,7 @@ class MarkdownVisitor:
     self.list_stack_ = []
     self.table_dict_ = []
     self.thead_ = 0
+    self.table_ = 0
     self.svg_ = 0
     self.math_ = 0
 
@@ -2410,18 +2448,36 @@ class MarkdownVisitor:
     if attr_text is None:
       attr_text = ""
 
-    # Check for autolink
     if attr_href is None:
       return (None, None)
 
-    if attr_text == "":
-      open_tag = "<" + attr_href
-      close_tag = ">"
-      return (open_tag, close_tag)
-    elif unquote(attr_href) == attr_text:
-      open_tag = "<"
-      close_tag = ">"
-      return (open_tag, close_tag)
+    if attr_href == '':
+      return (None, None)
+
+    # Check for missing URL scheme
+    urlTuple = urllib.parse.urlsplit(attr_href)
+    if urlTuple.scheme == '':
+      attr_href = 'http://' + urlTuple.path
+
+    # NOTE: Autolink format causes problems with markdown2, XML parser, and BeautifulSoup
+    #       when the URL scheme is missing.
+    #
+    #       Remove support for <https://www.google.com>
+    #       and change to [https://www.google.com](https://www.google.com)
+    #
+    # If the URL scheme is missing (e.g. <www.google.com>), the link is not converted to HTML
+    # by markdown2 causing BeautifulSoup to misinterpret the markdown link as an HTML tag.
+    #
+
+    # Autolink format
+    # if attr_text == "":
+    #   open_tag = "<" + attr_href
+    #   close_tag = ">"
+    #   return (open_tag, close_tag)
+    # elif unquote(attr_href) == attr_text:
+    #   open_tag = "<"
+    #   close_tag = ">"
+    #   return (open_tag, close_tag)
 
     open_tag = "["
     close_tag = ""
@@ -2434,14 +2490,20 @@ class MarkdownVisitor:
       file_name = attr_href.split('/')[-1]
       close_tag = f"""{file_name}](:/{resource})"""
     else:
-      #attr_href = self.html_escape(attr_href)
+      # Self-closing tag or text for link is missing so use URL
+      if attr_text == "":
+        open_tag += markdown_escape(attr_href)
+      attr_href = markdown_escape(attr_href)
       if attr_title is None:
         close_tag = f"""]({attr_href})"""
       else:
-        attr_title = self.html_escape(attr_title)
+        attr_title = self.html_escape(markdown_escape(attr_title))
         close_tag = f"""]({attr_href} "{attr_title}")"""
 
     return (open_tag, close_tag)
+
+  def format_link_text(self, text, tail):
+    return (markdown_escape(text), tail)
 
   def format_img_link(self, attr_src, attr_alt, attr_title):
     if attr_alt is None:
@@ -2458,10 +2520,12 @@ class MarkdownVisitor:
       file_name = attr_src.split('/')[-1]
       close_tag = f"""{file_name}](:/{resource})"""
     else:
+      attr_alt = markdown_escape(attr_alt)
+      attr_src = markdown_escape(attr_src)
       if attr_title is None:
         close_tag = f"""{attr_alt}]({attr_src})"""
       else:
-        attr_title = self.html_escape(attr_title)
+        attr_title = self.html_escape(markdown_escape(attr_title))
         close_tag = f"""{attr_alt}]({attr_src} "{attr_title}")"""
     return (open_tag, close_tag)
 
@@ -2469,6 +2533,7 @@ class MarkdownVisitor:
     return (text, '\n')
 
   def format_table_tag(self, text, tail):
+    self.table_ += 1
     table_dict = {}
     table_dict['columns'] = 0
     table_dict['header'] = []
@@ -2485,6 +2550,7 @@ class MarkdownVisitor:
   def post_table_tag(self):
     if len(self.table_dict_) > 0:
       self.table_dict_.pop()
+    self.table_ -= 1
 
   def format_thead_tag(self, text, tail):
     self.thead_ += 1
@@ -2769,17 +2835,25 @@ class MarkdownVisitor:
     return (open_tag, close_tag)
 
   def format_br_tag(self, text, tail):
+    # NOTE: Joplin does not display URLs when <br> is used:
+    # https://github.com/laurent22/joplin/issues/3270
+    # https://github.com/laurent22/joplin/issues/3274
+
     if tail is None:
       tail = ''
     open_tag = ""
     close_tag = ""
     if tail.startswith('\n'):
-      open_tag = "  "
+      open_tag = "\n  "
     else:
-      open_tag = "<br>"
+      open_tag = "\n  \n"
     return (open_tag, close_tag)
 
   def format_p_tag(self, text, tail):
+    if self.table_ > 0:
+      # newline characters break table formatting inside a table
+      return ('', '')
+
     open_tag = ''
     close_tag = '\n'
     if text is not None:
@@ -2788,6 +2862,23 @@ class MarkdownVisitor:
     return (open_tag, close_tag)
 
   def format_p_text(self, text, tail):
+    if text is not None:
+      return (text.strip(), tail)
+    return (text, tail)
+
+  def format_div_tag(self, text, tail):
+    if self.table_ > 0:
+      # newline characters break table formatting inside a table
+      return ('', '')
+
+    open_tag = ''
+    close_tag = '\n'
+    if text is not None:
+      if text.endswith('\n'):
+        close_tag = ''
+    return (open_tag, close_tag)
+
+  def format_div_text(self, text, tail):
     if text is not None:
       return (text.strip(), tail)
     return (text, tail)
@@ -4069,11 +4160,9 @@ class MarkdownVisitor:
     node_pre_tail = None
     node_preclose = None
     
-    open_tag = """
-  """
-    close_tag = """
-  """
-    node_text = node.text
+    open_tag, close_tag = self.format_div_tag(node.text, node.tail)
+    
+    node_text, node_tail = self.format_div_text(node.text, node.tail)
     if open_tag is None:
       open_tag = html_open_tag
     if close_tag is None:
@@ -4572,7 +4661,7 @@ class MarkdownVisitor:
 
     open_tag, close_tag =self.format_link(attr_text, attr_href, attr_title)
     
-    node_text = node.text
+    node_text, node_tail = self.format_link_text(node.text, node.tail)
     if open_tag is None:
       open_tag = html_open_tag
     if close_tag is None:

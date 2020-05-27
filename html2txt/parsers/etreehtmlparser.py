@@ -225,12 +225,12 @@ class ETreeHTMLParser(HTMLParser):
     self.tree.openElements.pop()
 
   def handle_data(self, data):
-    svgFound = self.elementInScope('http://www.w3.org/2000/svg','svg')
+    # svgFound = self.elementInScope('http://www.w3.org/2000/svg','svg')
 
-    if svgFound == True:
-      self.tree.insertText(html.escape(data, quote=False))
-    else:
-      self.tree.insertText(data)
+    # if svgFound == True:
+    #   self.tree.insertText(html.escape(data, quote=False))
+    # else:
+    self.tree.insertText(html.escape(data, quote=False))
 
   def handle_comment(self, data):
     self.tree.insertComment({"data": data})
