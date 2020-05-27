@@ -1,5 +1,5 @@
 beautifulsoup4==4.9.1
-html2txt==0.1.0
+html2txt==0.2.0
 html5lib==1.0.1
 markdown2==2.3.9
 pytz==2020.1
