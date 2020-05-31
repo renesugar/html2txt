@@ -3,7 +3,7 @@ import sys
 
 from . import visitor as v
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from io import StringIO
 from xml.sax.saxutils import escape, quoteattr
 import html
@@ -11,8 +11,11 @@ import html
 import urllib
 from urllib.parse import urlparse
 from urllib.parse import unquote
+from urllib.parse import quote
 
 import re
+
+from .common import escape_url, escape_html
 
 # TODO: (partial) In SVG and MathML, do not do any markdown formatting in nested tags.
 
@@ -40,40 +43,6 @@ import re
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-# Markdown provides backslash escapes for the following characters:
-#
-# \   backslash
-# `   backtick
-# *   asterisk
-# _   underscore
-# {}  curly braces
-# []  square brackets
-# ()  parentheses
-# #   hash mark
-# +   plus sign
-# -   minus sign (hyphen)
-# .   dot
-# !   exclamation mark
-def markdown_escape(s):
-  if s is None:
-    return s
-  t = s.replace("\\", "\\\\")
-  t = t.replace("`", "\\`")
-  t = t.replace("*", "\\*")
-  t = t.replace("_", "\\_")
-  t = t.replace("{", "\\{")
-  t = t.replace("}", "\\}")
-  t = t.replace("[", "\\[")
-  t = t.replace("]", "\\]")
-  t = t.replace("(", "\\(")  
-  t = t.replace(")", "\\)")
-  t = t.replace("#", "\\#")
-  t = t.replace("+", "\\+")
-  t = t.replace("-", "\\-")
-  t = t.replace(".", "\\.")
-  t = t.replace("!", "\\!")
-  return t
 
 class Node:
   def __init__(self):
@@ -2394,27 +2363,8 @@ class MarkdownVisitor:
     self.svg_ = 0
     self.math_ = 0
 
-    # this pattern matches substrings of reserved and non-ASCII characters
-    self.pattern_ = re.compile(r"[&<>\"\x80-\xff]+")
-
-    # create character map
-    self.entity_map_ = {}
-
-    for i in range(256):
-      self.entity_map_[chr(i)] = "&#%d;" % i
-
-    for entity, char in html.entities.entitydefs.items():
-      if char in self.entity_map_:
-        self.entity_map_[char] = "&%s;" % entity
-
   def InXmlScope(self):
     return self.svg_ > 0 or self.math_ > 0
-
-  def escape_entity(self, m):
-    return ''.join(map(self.entity_map_.get, m.group()))
-
-  def html_escape(self, text):
-    return self.pattern_.sub(self.escape_entity, text)
 
   def push_data_source(self):
     self.data_.append(StringIO())
@@ -2457,7 +2407,7 @@ class MarkdownVisitor:
     # Check for missing URL scheme
     urlTuple = urllib.parse.urlsplit(attr_href)
     if urlTuple.scheme == '':
-      attr_href = 'http://' + urlTuple.path
+      attr_href = 'https://' + urlTuple.path
 
     # NOTE: Autolink format causes problems with markdown2, XML parser, and BeautifulSoup
     #       when the URL scheme is missing.
@@ -2482,6 +2432,10 @@ class MarkdownVisitor:
     open_tag = "["
     close_tag = ""
 
+    #
+    # NOTE: Mistune markdown parser does not reverse escape inside link URL
+    #
+
     # Format joplin: URL
     #
     # e.g. [FILE.pdf](:/a56a1e70f3b14bb085f8b8d7794c05fc)
@@ -2492,18 +2446,18 @@ class MarkdownVisitor:
     else:
       # Self-closing tag or text for link is missing so use URL
       if attr_text == "":
-        open_tag += markdown_escape(attr_href)
-      attr_href = markdown_escape(attr_href)
+        open_tag += escape_html(attr_href)
+      attr_href = escape_url(attr_href)
       if attr_title is None:
         close_tag = f"""]({attr_href})"""
       else:
-        attr_title = self.html_escape(markdown_escape(attr_title))
+        attr_title = escape_html(attr_title)
         close_tag = f"""]({attr_href} "{attr_title}")"""
 
     return (open_tag, close_tag)
 
   def format_link_text(self, text, tail):
-    return (markdown_escape(text), tail)
+    return (escape_html(text), tail)
 
   def format_img_link(self, attr_src, attr_alt, attr_title):
     if attr_alt is None:
@@ -2511,6 +2465,10 @@ class MarkdownVisitor:
 
     open_tag = "!["
     close_tag = ""
+
+    #
+    # NOTE: Mistune markdown parser does not reverse escape inside link URL
+    #
 
     # Format joplin: URL
     #
@@ -2520,12 +2478,12 @@ class MarkdownVisitor:
       file_name = attr_src.split('/')[-1]
       close_tag = f"""{file_name}](:/{resource})"""
     else:
-      attr_alt = markdown_escape(attr_alt)
-      attr_src = markdown_escape(attr_src)
+      attr_alt = escape_html(attr_alt)
+      attr_src = escape_url(attr_src)
       if attr_title is None:
         close_tag = f"""{attr_alt}]({attr_src})"""
       else:
-        attr_title = self.html_escape(markdown_escape(attr_title))
+        attr_title = escape_html(attr_title)
         close_tag = f"""{attr_alt}]({attr_src} "{attr_title}")"""
     return (open_tag, close_tag)
 

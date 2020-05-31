@@ -13,6 +13,8 @@ from html5lib.treebuilders import getTreeBuilder
 
 from .xmlfragmentparser import XmlFragmentParser
 
+from .common import escape_url, escape_html
+
 class ScopeNode:
   def __init__(self, uri, tag):
     self.nameTuple = (uri, tag)
@@ -230,7 +232,7 @@ class ETreeHTMLParser(HTMLParser):
     # if svgFound == True:
     #   self.tree.insertText(html.escape(data, quote=False))
     # else:
-    self.tree.insertText(html.escape(data, quote=False))
+    self.tree.insertText(escape_html(data))
 
   def handle_comment(self, data):
     self.tree.insertComment({"data": data})
