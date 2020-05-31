@@ -1,8 +1,6 @@
-beautifulsoup4==4.9.1
-html2txt==0.2.0
+html2txt==0.3.0
 html5lib==1.0.1
 mistune==0.8.4
 pytz==2020.1
 six==1.15.0
-soupsieve==2.0.1
 webencodings==0.5.1

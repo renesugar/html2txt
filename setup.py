@@ -17,12 +17,10 @@ with open("README.md", "r") as fh:
   long_description = fh.read()
 
 install_requires = [
-  "beautifulsoup4>=4.9.0",
   "html5lib>=1.0.1",
-  "markdown2>=2.3.9",
+  "mistune>=0.8.4"
   "pytz>=2020.1",
   "six>=1.14.0",
-  "soupsieve>=2.0",
   "webencodings>=0.5.1",
 ]
 
