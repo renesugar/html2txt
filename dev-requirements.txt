@@ -1,7 +1,7 @@
 attrs==19.3.0
 colorama==0.4.3
 docopt==0.6.2
-html2txt==0.3.0
+html2txt==0.5.0
 html5lib==1.0.1
 importlib-metadata==1.6.0
 mistune==0.8.4
