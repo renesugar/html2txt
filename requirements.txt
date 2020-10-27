@@ -1,4 +1,4 @@
-html2txt==0.5.0
+html2txt==0.6.0
 html5lib==1.0.1
 mistune==0.8.4
 six==1.15.0
