@@ -14,7 +14,6 @@ pyparsing==2.4.7
 pytest==5.4.2
 pytest-mock==3.1.0
 pytest-watch==4.2.0
-pytz==2020.1
 six==1.15.0
 watchdog==0.10.2
 wcwidth==0.1.9

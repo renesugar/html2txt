@@ -19,7 +19,6 @@ with open("README.md", "r") as fh:
 install_requires = [
   "html5lib>=1.0.1",
   "mistune>=0.8.4"
-  "pytz>=2020.1",
   "six>=1.14.0",
   "webencodings>=0.5.1",
 ]
